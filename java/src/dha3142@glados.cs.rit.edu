@@ -1,0 +1,169 @@
+
+
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.util.Arrays;
+import java.util.Scanner;
+
+public class Client {
+
+	final static private String mode="octet";
+	static Scanner scan=new Scanner(System.in);
+	final static private int PORT=69;
+	final static private String server="glados.cs.rit.edu";
+	static InetAddress address;  
+	static DatagramSocket socket;
+	static DatagramSocket receiveSocket;
+	//static DatagramPacket packet;
+	//static byte[] buf = new byte[512];
+
+	public static void main(String args[])throws Exception{
+
+		//listen();
+		//	System.out.println(mode.getBytes().length);
+
+		// change the command prompt here
+
+		//receive a command
+
+		while(true){
+			parseCommand(scan.next());
+		}
+
+
+	}
+
+	private static void listen()throws Exception{
+
+		byte[] buf = new byte[512];
+		DatagramSocket r=new DatagramSocket(69);
+
+		DatagramPacket packet=new DatagramPacket(buf,buf.length);
+		r.receive(packet);
+
+		System.out.println("data received: "+new String(packet.getData(),0,packet.getLength()));
+	}
+
+	private static byte[] makeRRQ(String filename, String mode){
+
+		byte[] fNameByte=filename.getBytes();
+		byte[] modeByte=mode.getBytes();
+		byte[] RRQByte=new byte[4+filename.getBytes().length+mode.getBytes().length];
+		RRQByte[0]=0;
+		RRQByte[1]=1;
+		for(int i=2;i<fNameByte.length+2;i++)
+			RRQByte[i]=fNameByte[i-2];
+
+		RRQByte[2+fNameByte.length]=0;
+
+
+
+		for(int i=3+fNameByte.length;i<modeByte.length+3+fNameByte.length;i++)
+			RRQByte[i]=modeByte[i-3-fNameByte.length];
+
+		RRQByte[3+fNameByte.length+modeByte.length]=0;
+
+
+		return RRQByte;
+
+	}
+
+	private static byte[] makeGetAkc(DatagramPacket packet){
+	
+		//	byte[] packetByte=packet.getOffset();
+		byte[] pktByte=packet.getData();
+		
+		byte[] ack=new byte[]{(byte)0 , (byte)4, pktByte[packet.getOffset()+2], pktByte[packet.getOffset()+3]};
+		System.out.printf("%d %d %d %d ",ack[0],ack[1],ack[2],ack[3]);
+		return ack;
+		
+	}
+	
+	
+	private static void get(String filename)throws Exception{
+
+		//making RRQ pkt
+
+		DatagramPacket RRQpkt=new DatagramPacket(makeRRQ(filename,mode),makeRRQ(filename,mode).length,address,PORT);
+
+		//send a RRQ
+		socket.send(RRQpkt);
+		System.out.println("Sent RRQ size= "+RRQpkt.getLength() );
+
+
+		//receiving the first pkt
+		byte[] buf = new byte[512];
+		//receiveSocket=new DatagramSocket(PORT);
+
+		DatagramPacket packet=new DatagramPacket(buf,buf.length);
+		do{
+			
+
+			socket.receive(packet);
+			
+			//System.out.println("received pkt block# = "+pktByte[2]+""+pktByte[3]);
+			
+			System.out.println("data received: "+new String(packet.getData(),0,packet.getLength()));
+			System.out.println("received pkt size= "+packet.getLength());
+			
+			DatagramPacket ack=new DatagramPacket(makeGetAkc(packet),makeGetAkc(packet).length,address,PORT);
+			System.out.println("ack size= "+ack.getLength());
+			
+			socket.send(ack);
+
+
+		}while(packet.getLength() == 512);
+
+
+		//while(packet.getLength()== 512){
+
+		//Receive the RRQ ack (first packet)
+
+		//send ack 
+
+		//}
+
+
+
+	}
+
+	private static void stablishTheConnection()throws Exception{
+
+		address=InetAddress.getByName(server);
+		socket=new DatagramSocket();
+
+		System.out.println("connected to "+ server);
+
+	}
+
+	private static void usage(){
+		System.out.println("connect\t\tconnect to remote tftp\nput\t\tsend file\nget\t\treceive file\nquit\t\texit tftp\n?\t\tprint help information");
+	}
+
+	private static void parseCommand(String command)throws Exception{
+
+		if(command.equals("connect")){
+			stablishTheConnection();
+		}else if(command.equals("get")){
+			get(scan.next());
+
+		}else if(command.equals("?")){
+			usage();
+
+		}else if(command.equals("quit")){
+			System.exit(0);
+
+		}else if(command.equals("put")){
+			System.out.println("command not available");
+
+		}else if(command.equals("\n")){
+
+		}else{
+			System.out.println("?Invalid command");
+		}
+	}
+
+
+}
